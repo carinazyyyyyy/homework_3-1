@@ -1,1 +1,2 @@
-from fintech_ibkr.synchronous_functions import *
+from fintech_ibkr.synchronous_functions import fetch_managed_accounts
+from fintech_ibkr.synchronous_functions import fetch_historical_data
