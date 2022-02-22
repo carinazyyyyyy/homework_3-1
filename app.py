@@ -1,11 +1,12 @@
 import dash
-from fintech_ibkr import *
+import plotly.graph_objects as go
 from dash import dcc
 from dash import html
-import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
-import pickle
-from time import sleep
+from ibapi.contract import Contract
+from fintech_ibkr import *
+import datetime
+import pandas as pd
 
 # Make a Dash app!
 app = dash.Dash(__name__)
@@ -15,24 +16,139 @@ app.layout = html.Div([
 
     # Section title
     html.H3("Section 1: Fetch & Display exchange rate historical data"),
-    html.P(
+    html.H4("Select value for whatToShow:"),
+    html.Div(
+        dcc.Dropdown(
+            ["TRADES", "MIDPOINT", "BID", "ASK", "BID_ASK", "ADJUSTED_LAST",
+             "HISTORICAL_VOLATILITY", "OPTION_IMPLIED_VOLATILITY", 'REBATE_RATE',
+             'FEE_RATE', "YIELD_BID", "YIELD_ASK", 'YIELD_BID_ASK', 'YIELD_LAST',
+             "SCHEDULE"],
+            "MIDPOINT",
+            id='what-to-show'
+        ),
+        style = {'width': '365px'}
+    ),
+
+    # Add barSize ################################################
+    html.H4("Select value for barSize:"),
+    html.Div(
+        # The input object itself
+        ["Select bar size: ", dcc.Dropdown(["1 sec","5 secs","15 secs","30 secs",
+                                            "1 min","2 mins","3 mins","5 mins","15 mins",
+                                            "30 mins","1 hour","1 day"], "1 hour", id='bar-size')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+
+    # Add Duration ############################################
+    html.H4("Select value for Duration:"),
+    html.Div(
+        children = [
+            html.P("Select a value for the amount of time which the data needs to be retrieved" + \
+                   "Duration includes S (seconds), D (days) or W (week)")
+        ],
+        style = {'width': '365px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Input duration: ", dcc.Input(
+            id='duration-Int', value='30', type='text'
+        ), dcc.Dropdown(options=[
+       {'label': 'Second', 'value': 'S'},
+       {'label': 'Day', 'value': 'D'},
+       {'label': 'Week', 'value': 'W'},
+   ],value = "D",id='duration-type')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+    # Add useRTH ####################################################
+    html.H4("Select value for useRTH:"),
+    html.Div(
         children=[
-            "See the various currency pairs here: ",
-                  html.A(
-                      "currency pairs",
-                      href='https://www.interactivebrokers.com/en/index.php?f=2222&exch=ibfxpro&showcategories=FX'
-                  )
-        ]
+            html.P("Select a value for the regular trading hour "+ \
+             "(Set to False to obtain the data which was also"+ \
+             "generated outside of the Regular Trading Hours,"+ \
+             "set to True to obtain only the RTH data")
+        ],
+        style={'width': '365px'}
+    ),
+    html.Div(
+        # The input object itself
+        ["Select bar size: ", dcc.RadioItems(options = [{"label":"return all data","value":0},
+                                                        {"label":"return regular trading time","value":1}],
+                                             value = 1, id='use-RTH')],
+        # Style it so that the submit button appears beside the input.
+        style={'width': '365px'}
+    ),
+
+
+    #Date ###################################################
+    html.H4("Select value for endDateTime:"),
+    html.Div(
+        children=[
+            html.P("You may select a specific endDateTime for the call to " + \
+                   "fetch_historical_data. If any of the below is left empty, " + \
+                   "the current present moment will be used.")
+        ],
+        style={'width': '365px'}
     ),
 
     html.Div(
-    dcc.Dropdown(
-        ["TRADES", "MIDPOINT", "BID", "ASK", "BID_ASK", "ADJUSTED_LAST",
-         "HISTORICAL_VOLATILITY", "OPTION_IMPLIED_VOLATILITY", 'REBATE_RATE',
-         'FEE_RATE', "YIELD_BID", "YIELD_ASK", 'YIELD_BID_ASK', 'YIELD_LAST',
-         "SCHEDULE"], "MIDPOINT", id='what-to-show'),
+        children = [
+            html.Div(
+                children = [
+                    html.Label('Date:'),
+                    dcc.DatePickerSingle(id='edt-date')
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'margin-right': '20px',
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Hour:'),
+                    dcc.Dropdown(list(range(24)), id='edt-hour'),
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'padding-right': '5px'
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Minute:'),
+                    dcc.Dropdown(list(range(60)), id='edt-minute'),
+                ],
+                style = {
+                    'display': 'inline-block',
+                    'padding-right': '5px'
+                }
+            ),
+            html.Div(
+                children = [
+                    html.Label('Second:'),
+                    dcc.Dropdown(list(range(60)), id='edt-second'),
+                ],
+                style = {'display': 'inline-block'}
+            )
+        ]
     ),
 
+
+    ############################################################################
+    html.H4("Enter a currency pair:"),
+    html.P(
+        children=[
+            "See the various currency pairs here: ",
+            html.A(
+                "currency pairs",
+                href='https://www.interactivebrokers.com/en/index.php?f=2222&exch=ibfxpro&showcategories=FX'
+            )
+        ]
+    ),
     # Currency pair text input, within its own div.
     html.Div(
         # The input object itself
@@ -40,7 +156,7 @@ app.layout = html.Div([
             id='currency-input', value='AUD.CAD', type='text'
         )],
         # Style it so that the submit button appears beside the input.
-        style={'display': 'inline-block'}
+        style={'display': 'inline-block', 'padding-top': '5px'}
     ),
     # Submit button
     html.Button('Submit', id='submit-button', n_clicks=0),
@@ -77,30 +193,48 @@ app.layout = html.Div([
 # Callback for what to do when submit-button is pressed
 @app.callback(
     [ # there's more than one output here, so you have to use square brackets to pass it in as an array.
-    Output(component_id='currency-output', component_property='children'),
-    Output(component_id='candlestick-graph', component_property='figure')
+        Output(component_id='currency-output', component_property='children'),
+        Output(component_id='candlestick-graph', component_property='figure')
     ],
-    [Input('submit-button', 'n_clicks'), Input('what-to-show', 'value')],
+    Input('submit-button', 'n_clicks'),
     # The callback function will
-     # fire when the submit button's n_clicks changes
+    # fire when the submit button's n_clicks changes
     # The currency input's value is passed in as a "State" because if the user is typing and the value changes, then
     #   the callback function won't run. But the callback does run because the submit button was pressed, then the value
     #   of 'currency-input' at the time the button was pressed DOES get passed in.
-    State('currency-input', 'value')
+    [State('currency-input', 'value'), State('what-to-show', 'value'),
+     State('edt-date', 'date'), State('edt-hour', 'value'),
+     State('edt-minute', 'value'), State('edt-second', 'value'),
+     State('duration-Int', 'value'),State('duration-type', 'value'), State('bar-size', 'value'),
+     State('use-RTH','value')]
 )
-def update_candlestick_graph(n_clicks, what_to_show, value): # n_clicks doesn't
-# get used, we only include it for the dependency.
+def update_candlestick_graph(n_clicks, currency_string, what_to_show,
+                             edt_date, edt_hour, edt_minute, edt_second,
+                             duration_int,duration_type,bar_size,use_RTH):
+    # n_clicks doesn't
+    # get used, we only include it for the dependency.
 
-    print(what_to_show)
+    if any([i is None for i in [edt_date, edt_hour, edt_minute, edt_second]]):
+        endDateTime = ''
+    else:
+        edt_date=edt_date.split('-')
+        endDateTime = edt_date[0] + edt_date[1] + edt_date[2] + " " \
+            + str(edt_hour) + ":" + str(edt_minute) + ":" \
+            + str(edt_second) + " EST"
+
 
     # First things first -- what currency pair history do you want to fetch?
     # Define it as a contract object!
-    # contract = Contract()
-    # contract.symbol   = # set this to the FIRST currency (before the ".")
-    # contract.secType  = 'CASH'
-    # contract.exchange = 'IDEALPRO' # 'IDEALPRO' is the currency exchange.
-    # contract.currency = # set this to the FIRST currency (before the ".")
+    contract = Contract()
+    contract.symbol   = currency_string.split(".")[0]
+    contract.secType  = 'CASH'
+    contract.exchange = 'IDEALPRO' # 'IDEALPRO' is the currency exchange.
+    contract.currency = currency_string.split(".")[1]
 
+    ############################################################################
+    ############################################################################
+    # This block is the one you'll need to work on. UN-comment the code in this
+    #   section and alter it to fetch & display your currency data!
     # Make the historical data request.
     # Where indicated below, you need to make a REACTIVE INPUT for each one of
     #   the required inputs for req_historical_data().
@@ -109,16 +243,15 @@ def update_candlestick_graph(n_clicks, what_to_show, value): # n_clicks doesn't
     # Some default values are provided below to help with your testing.
     # Don't forget -- you'll need to update the signature in this callback
     #   function to include your new vars!
-    cph = req_historical_data(
-        contract = contract,
-        endDateTime='',           # <-- make a reactive input
-        durationStr='30 D',       # <-- make a reactive input
-        barSizeSetting='1 hour',  # <-- make a reactive input
-        whatToShow=what_to_show,    # <-- make a reactive input
-        useRTH=True               # <-- make a reactive input
+    cph = fetch_historical_data(
+        contract=contract,
+        endDateTime=endDateTime,
+        durationStr=f'{duration_int} {duration_type}',       # <-- make a reactive input
+        barSizeSetting=bar_size,  # <-- make a reactive input
+        whatToShow=what_to_show,
+        useRTH=use_RTH,               # <-- make a reactive input
     )
-
-    # Make the candlestick figure
+    # # # Make the candlestick figure
     fig = go.Figure(
         data=[
             go.Candlestick(
@@ -130,12 +263,15 @@ def update_candlestick_graph(n_clicks, what_to_show, value): # n_clicks doesn't
             )
         ]
     )
+    currency_string = 'default stock price data fetch'
+    # # # Give the candlestick figure a title
+    fig.update_layout(title=('Exchange Rate: ' + currency_string))
+    ############################################################################
+    ############################################################################
 
-    # Give the candlestick figure a title
-    fig.update_layout(title=('Exchange Rate: ' + value))
 
     # Return your updated text to currency-output, and the figure to candlestick-graph outputs
-    return ('Submitted query for ' + value), fig
+    return ('Submitted query for ' + currency_string), fig
 
 # Callback for what to do when trade-button is pressed
 @app.callback(
@@ -167,3 +303,22 @@ def trade(n_clicks, action, trade_currency, trade_amt): # Still don't use n_clic
 # Run it!
 if __name__ == '__main__':
     app.run_server(debug=True)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
