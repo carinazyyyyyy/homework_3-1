@@ -10,6 +10,7 @@ import pandas as pd
 
 # Make a Dash app!
 app = dash.Dash(__name__)
+server=app.server
 
 # Define the layout.
 app.layout = html.Div([
@@ -263,7 +264,7 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
             )
         ]
     )
-    currency_string = 'default stock price data fetch'
+    #currency_string = 'default stock price data fetch'
     # # # Give the candlestick figure a title
     fig.update_layout(title=('Exchange Rate: ' + currency_string))
     ############################################################################
