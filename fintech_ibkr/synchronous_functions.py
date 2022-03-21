@@ -114,6 +114,9 @@ def fetch_historical_data(contract, endDateTime='', durationStr='30 D',
         whatToShow, useRTH, formatDate=1, keepUpToDate=False, chartOptions=[])
     while app.historical_data_end != tickerId:
         time.sleep(0.01)
+        if app.error_messages.iloc[-1]['errorCode']==200:
+            app.disconnect()
+            return app.error_messages.iloc[-1]['errorString']
     app.disconnect()
     return app.historical_data
 
