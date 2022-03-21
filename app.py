@@ -9,6 +9,8 @@ import datetime
 import pandas as pd
 
 # Make a Dash app!
+from fintech_ibkr.synchronous_functions import fetch_contract_details
+
 app = dash.Dash(__name__)
 
 # Define the layout.
@@ -165,7 +167,14 @@ app.layout = html.Div([
     # Div to hold the initial instructions and the updated info once submit is pressed
     html.Div(id='currency-output', children='Enter a currency code and press submit'),
     # Div to hold the candlestick graph
-    html.Div([dcc.Graph(id='candlestick-graph')]),
+    html.Div(
+        dcc.Loading(
+            id="loading-1",
+            type="default",
+            children=dcc.Graph(id='candlestick-graph')
+        )
+    ),
+    
     # Another line break
     html.Br(),
     # Section title
@@ -226,10 +235,20 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     # First things first -- what currency pair history do you want to fetch?
     # Define it as a contract object!
     contract = Contract()
+    if currency_string.count(".") != 1:
+        return ("Error: wrong currency pairs format (" + currency_string + "), please check your input"), go.Figure()
     contract.symbol   = currency_string.split(".")[0]
     contract.secType  = 'CASH'
     contract.exchange = 'IDEALPRO' # 'IDEALPRO' is the currency exchange.
     contract.currency = currency_string.split(".")[1]
+
+    contract_detail = fetch_contract_details(contract)
+    if type(contract_detail) == str:
+        return ("Error: wrong currency pairs (" + currency_string + "), please check your input"), go.Figure()
+    else:
+        s = str(contract_detail).split(",")[10]
+        if s != currency_string:
+            return ("The system currency pairs " + s + " does not match your input " + currency_string), go.Figure()
 
     ############################################################################
     ############################################################################
