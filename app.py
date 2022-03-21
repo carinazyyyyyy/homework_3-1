@@ -168,7 +168,13 @@ app.layout = html.Div([
     # Div to hold the initial instructions and the updated info once submit is pressed
     html.Div(id='currency-output', children='Enter a currency code and press submit'),
     # Div to hold the candlestick graph
-    html.Div([dcc.Graph(id='candlestick-graph')]),
+    html.Div(
+        dcc.Loading(
+            id="loading-1",
+            type="default",
+            children= dcc.Graph(id='candlestick-graph')
+        )
+    ),
     # Another line break
     html.Br(),
     # Section title
