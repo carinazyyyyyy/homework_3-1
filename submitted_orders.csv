@@ -1,0 +1,4 @@
+timestamp,order_id,client_id,perm_id,con_id,symbol,action,size,order_type,Imt_price
+2022-03-29 18:05:21,1.0,10645.0,2092727840.0,0,AUD,BUY,200,MKT,
+2022-03-29 18:12:06,2.0,10645.0,2092727841.0,0,AUD,SELL,200000,MKT,
+
