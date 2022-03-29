@@ -315,15 +315,16 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     contract.secType  = 'CASH'
     contract.exchange = 'IDEALPRO' # 'IDEALPRO' is the currency exchange.
     contract.currency = currency_string.split(".")[1]
-
-    contract_detail = fetch_contract_details(contract)
-    if type(contract_detail) == str:
-        return ("Error: wrong currency pairs (" + currency_string + "), please check your input"), go.Figure()
-    else:
-        s = str(contract_detail).split(",")[10]
-        if s != currency_string:
-            return ("The system currency pairs " + s + " does not match your input " + currency_string), go.Figure()
-    ############################################################################
+    errmsg = None
+    contract_details, errmsg = fetch_contract_details(contract=contract)
+    #contract_detail = fetch_contract_details(contract)
+    # if type(contract_detail) == str:
+    #     return ("Error: wrong currency pairs (" + currency_string + "), please check your input"), go.Figure()
+    # else:
+    #     s = str(contract_detail).split(",")[10]
+    #     if s != currency_string:
+    #         return ("The system currency pairs " + s + " does not match your input " + currency_string), go.Figure()
+    # ############################################################################
     ############################################################################
     # This block is the one you'll need to work on. UN-comment the code in this
     #   section and alter it to fetch & display your currency data!
@@ -335,35 +336,75 @@ def update_candlestick_graph(n_clicks, currency_string, what_to_show,
     # Some default values are provided below to help with your testing.
     # Don't forget -- you'll need to update the signature in this callback
     #   function to include your new vars!
-    cph = fetch_historical_data(
-        contract=contract,
-        endDateTime=endDateTime,
-        durationStr=f'{duration_int} {duration_type}',       # <-- make a reactive input
-        barSizeSetting=bar_size,  # <-- make a reactive input
-        whatToShow=what_to_show,
-        useRTH=use_RTH,               # <-- make a reactive input
-    )
-    # # # Make the candlestick figure
-    fig = go.Figure(
-        data=[
-            go.Candlestick(
-                x=cph['date'],
-                open=cph['open'],
-                high=cph['high'],
-                low=cph['low'],
-                close=cph['close']
-            )
-        ]
-    )
-    currency_string = 'default stock price data fetch'
-    # # # Give the candlestick figure a title
-    fig.update_layout(title=('Exchange Rate: ' + currency_string))
-    ############################################################################
-    ############################################################################
 
+    if errmsg is None:
+        cph = fetch_historical_data(
+            contract=contract,
+            endDateTime=endDateTime,  # '',#edt_date,
+            durationStr=f'{duration_int} {duration_type}',  # '1 D',       # <-- make a reactive input
+            barSizeSetting=bar_size,  # <-- make a reactive input
+            whatToShow=what_to_show,
+            useRTH=use_RTH, # <-- make a reactive input
+        )
+
+        # # Make the candlestick figure
+        fig = go.Figure(
+            data=[
+                go.Candlestick(
+                    x=cph['date'],
+                    open=cph['open'],
+                    high=cph['high'],
+                    low=cph['low'],
+                    close=cph['close']
+                )
+            ]
+        )
+        # # Give the candlestick figure a title
+        fig.update_layout(title=('Exchange Rate: ' + currency_string))
+    else:
+        fig = go.Figure(
+            data=[
+                go.Candlestick(
+                )
+            ]
+        )
+        fig.update_layout(title=('Exchange Rate: ' + currency_string))
+        print(errmsg)
+        return ('Submitted query for ' + currency_string), fig, True, 'Error: ' + errmsg
+
+
+
+
+    # cph = fetch_historical_data(
+    #     contract=contract,
+    #     endDateTime=endDateTime,
+    #     durationStr=f'{duration_int} {duration_type}',       # <-- make a reactive input
+    #     barSizeSetting=bar_size,  # <-- make a reactive input
+    #     whatToShow=what_to_show,
+    #     useRTH=use_RTH,               # <-- make a reactive input
+    # )
+    # # # # Make the candlestick figure
+    # fig = go.Figure(
+    #     data=[
+    #         go.Candlestick(
+    #             x=cph['date'],
+    #             open=cph['open'],
+    #             high=cph['high'],
+    #             low=cph['low'],
+    #             close=cph['close']
+    #         )
+    #     ]
+    # )
+    # currency_string = 'default stock price data fetch'
+    # # # # Give the candlestick figure a title
+    # fig.update_layout(title=('Exchange Rate: ' + currency_string))
+    # ############################################################################
+    # ############################################################################
+    #
 
     # Return your updated text to currency-output, and the figure to candlestick-graph outputs
-    return ('Submitted query for ' + currency_string), fig
+    # return ('Submitted query for ' + currency_string), fig
+    return ('Submitted query for ' + currency_string), fig, False, ''
 
 # Callback for what to do when trade-button is pressed
 @app.callback(
